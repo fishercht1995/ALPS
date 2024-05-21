@@ -59,6 +59,9 @@ def LinerRegression(cpu_ulilization, args, old_policy = {}):
     up_ts = 0
     updated_policy = {}
     for k in sorted_keys:
+        alpha = args.alpha
+        #upperBound = data_stat[k][0] if data_stat[k][0] <= 200 else 200
+        upperBound = data_stat[k][0]
         if k in data_stat:
             if args.unpred:
                 upperBound = int(upperBound * alpha)
@@ -70,8 +73,8 @@ def LinerRegression(cpu_ulilization, args, old_policy = {}):
             else:
                 new_v = upperBound
             #penalty = a * (data_stat[k][2]) + data_stat[k][1]
-            if up_ts !=0 and new_v > up_ts:
-                new_v = up_ts
+            #if up_ts !=0 and new_v > up_ts:
+            #    new_v = up_ts
             if k in old_policy and old_policy[k][1] > 1:
                 up_ts = int(0.7 * new_v + 0.3 * old_policy[k][1])
             else:
@@ -119,6 +122,9 @@ def RandomForest(cpu_ulilization, args, old_policy = {}):
     up_ts = 0
     updated_policy = {}
     for k in sorted_keys:
+        alpha = args.alpha
+        #upperBound = data_stat[k][0] if data_stat[k][0] <= 200 else 200
+        upperBound = data_stat[k][0]
         if k in data_stat:
             if args.unpred:
                 upperBound = int(upperBound * alpha)
@@ -129,8 +135,8 @@ def RandomForest(cpu_ulilization, args, old_policy = {}):
                 new_v = upperBound - penalty if upperBound - penalty > 0 else 0
             else:
                 new_v = upperBound
-            if up_ts !=0 and new_v > up_ts:
-                new_v = up_ts
+            #if up_ts !=0 and new_v > up_ts:
+            #    new_v = up_ts
             if k in old_policy and old_policy[k][1] > 1:
                 up_ts = int(0.7 * new_v + 0.3 * old_policy[k][1])
             else:
@@ -180,6 +186,9 @@ def ExponentialWeightedMovingAverage(cpu_ulilization, args, old_policy = {}):
     updated_policy = {}
     for k in sorted_keys:
         if k in data_stat:
+            alpha = args.alpha
+            #upperBound = data_stat[k][0] if data_stat[k][0] <= 200 else 200
+            upperBound = data_stat[k][0]
             if args.unpred:
                 upperBound = int(upperBound * alpha)
                 if upperBound >= 200:
@@ -189,8 +198,8 @@ def ExponentialWeightedMovingAverage(cpu_ulilization, args, old_policy = {}):
                 new_v = upperBound - penalty if upperBound - penalty > 0 else 0
             else:
                 new_v = upperBound
-            if up_ts !=0 and new_v > up_ts:
-                new_v = up_ts
+            #if up_ts !=0 and new_v > up_ts:
+            #    new_v = up_ts
             if k in old_policy and old_policy[k][1] > 1:
                 up_ts = int(0.7 * new_v + 0.3 * old_policy[k][1])
             else:
@@ -235,7 +244,7 @@ def heurtistic(cpu_ulilization, args, old_policy = {}):
     for k in sorted_keys:
         if k in data_stat:
             alpha = args.alpha
-            upperBound = data_stat[k][0] if data_stat[k][0] <= 200 else 200
+            #upperBound = data_stat[k][0] if data_stat[k][0] <= 200 else 200
             upperBound = data_stat[k][0]
             if args.unpred:
                 upperBound = int(upperBound * alpha)
@@ -246,8 +255,8 @@ def heurtistic(cpu_ulilization, args, old_policy = {}):
                 new_v = upperBound - penalty if upperBound - penalty > 0 else 0
             else:
                 new_v = upperBound
-            if up_ts !=0 and new_v > up_ts:
-                new_v = up_ts
+            #if up_ts !=0 and new_v > up_ts:
+            #    new_v = up_ts
             if k in old_policy and old_policy[k][1] > 1:
                 up_ts = int(0.7 * new_v + 0.3 * old_policy[k][1])
             else:

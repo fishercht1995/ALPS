@@ -114,9 +114,10 @@ cd backend
 make bpf && make alps
 ./alps.o
 ```
-Run Openlambda
+Build OpenLambda
 ```
-cd experiments && ./ol worker --path={PATH}
+cd experiments && python3 create_ol_env.py --workspace=/root/test --worker_config=worker_config_test
+cd /root/test && ./ol worker --path=worker1
 ```
 Now invoke your lambda
 ```
@@ -128,6 +129,8 @@ curl -X POST http://localhost:5002/run/fib \
 To test performance of *ALPS*, we provides some helper scripts, firstly, start and delete multiple functions:
 ```
 cd experiments
+python3 create_ol_env.py --workspace=/root/ol_workerspace --worker_config=worker_config # build worker
+cd /root/ol_workerspace
 ./init_function.sh # init functions
 ./delete_function.sh # delete function workers
 ```
