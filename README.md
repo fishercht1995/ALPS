@@ -81,12 +81,11 @@ sudo apt-get update -y
 sudo apt-get install -y schedtool
 ```
 ### Docker
-Clone *ALPS* repository and copy docker binaries to `/usr/sbin`
+Clone *ALPS* repository and copy docker binaries to `/usr/bin`
 ```
 git clone https://github.com/fishercht1995/ALPS.git
-cd docker_binaries
-cp binary-client/* /usr/bin/
-cp binary-daemon/* /usr/bin/
+cd ALPS/docker_binaries
+cp * /usr/bin/
 ```
 #### OpenLambda
 Build OL worker image
