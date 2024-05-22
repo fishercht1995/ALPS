@@ -137,7 +137,7 @@ cd /root/ol_workerspace
 ```
 Then start frontend and backend. 
 ```
-cd frontend && python3 main.py --alpha 1 --beta 1 --ml avg --exp_result ../experiments/seals
+cd frontend && python3 main.py --alpha 1 --beta 1 --ml avg --exp_result ../experiments/alps
 cd backend && ./alps.o
 ```
 Submit benchmark request by http client
