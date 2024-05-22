@@ -20,7 +20,7 @@ def simulate(workloads, policy, outpath, timeSlice = 6, period = 1000, CScost = 
     elif policy == "srtf":
         sched = scheduler.SRTFScheduler()
     elif policy == "seal":
-        sched = scheduler.SEALScheduler(timeSlice, period)
+        sched = scheduler.ALPScheduler(timeSlice, period)
     elif policy == "sfs":
         sched = scheduler.SFSScheduler(timeSlice, period)
     t = 0
