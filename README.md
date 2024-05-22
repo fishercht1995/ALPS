@@ -39,7 +39,8 @@ In addition, We modify and provide exact softwares binaries to run FaaS service.
     -  containerd:
         - version 1.6.24
 - OpenLambda:
-    - commmit hash: 92fbdfe
+    - commmit hash: b9112b4
+    - modification: patches/OpenLambda/changes.patch
    
 ### Step-by-Step Installation
 
@@ -54,7 +55,7 @@ gcc --version
 Download the Go language binary archive
 ```
 wget https://go.dev/dl/go1.21.10.linux-amd64.tar.gz
-sudo tar -xvf go1.12.linux-amd64.tar.gz
+sudo tar -xvf go1.21.10.linux-amd64.tar.gz
 sudo mv go /usr/local
 ```
 Setup Go environment, including `GOROOT` and `GOPATH`. Add environment variables to the `~/.profile`.

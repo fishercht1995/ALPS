@@ -1,0 +1,242 @@
+diff --git a/src/common/config.go b/src/common/config.go
+index 319583aa..8cadcb0a 100644
+--- a/src/common/config.go
++++ b/src/common/config.go
+@@ -54,7 +54,8 @@ type Config struct {
+ 
+ 	// which OCI implementation to use for the docker sandbox (e.g., runc or runsc)
+ 	Docker_runtime string `json:"docker_runtime"`
+-
++	Seal_priority string `json:"seal_priority"`
++	Function_name string `json:"function_name"`
+ 	Limits   LimitsConfig   `json:"limits"`
+ 	Features FeaturesConfig `json:"features"`
+ 	Trace    TraceConfig    `json:"trace"`
+@@ -141,6 +142,8 @@ func LoadDefaults(olPath string) error {
+ 		Registry_cache_ms: 5000, // 5 seconds
+ 		Mem_pool_mb:       mem_pool_mb,
+ 		Import_cache_tree: "",
++		Seal_priority: 	   "0",
++		Function_name:	   "nil",
+ 		Limits: LimitsConfig{
+ 			Procs:            10,
+ 			Mem_mb:           50,
+diff --git a/src/lambda/lambda.go b/src/lambda/lambda.go
+index 52f04aab..54ffe86c 100644
+--- a/src/lambda/lambda.go
++++ b/src/lambda/lambda.go
+@@ -151,11 +151,11 @@ func (mgr *LambdaMgr) Get(name string) (f *LambdaFunc) {
+ 		f = &LambdaFunc{
+ 			lmgr:      mgr,
+ 			name:      name,
+-			funcChan:  make(chan *Invocation, 32),
+-			instChan:  make(chan *Invocation, 32),
+-			doneChan:  make(chan *Invocation, 32),
++			funcChan:  make(chan *Invocation, 63526),
++			instChan:  make(chan *Invocation, 63526),
++			doneChan:  make(chan *Invocation, 63526),
+ 			instances: list.New(),
+-			killChan:  make(chan chan bool, 1),
++			killChan:  make(chan chan bool, 100),
+ 		}
+ 
+ 		go f.Task()
+@@ -497,7 +497,7 @@ func (f *LambdaFunc) Task() {
+ 		if outstandingReqs < desiredInstances {
+ 			desiredInstances = outstandingReqs
+ 		}
+-
++		desiredInstances = 1
+ 		// always try to have one instance
+ 		if desiredInstances < 1 {
+ 			desiredInstances = 1
+@@ -565,6 +565,15 @@ func (f *LambdaFunc) Kill() {
+ 	<-done
+ }
+ 
++func (linst *LambdaInstance) asyn_run(req *Invocation, proxy *httputil.ReverseProxy, f *LambdaFunc, err error, sb sandbox.Sandbox){
++	t := common.T0("ServeHTTP")
++	proxy.ServeHTTP(req.w, req.r)
++	t.T1()
++	req.execMs = int(t.Milliseconds)
++	//fmt.Println("Exec ",req.execMs)
++	common.Seallogger.Info(fmt.Sprintf("Workport: %s; seal priority: %s; function name: %s; ExecTime: %d", common.Conf.Worker_port, common.Conf.Seal_priority, common.Conf.Function_name, req.execMs))
++	f.doneChan <- req
++}
+ // this Task manages a single Sandbox (at any given time), and
+ // forwards requests from the function queue to that Sandbox.
+ // when there are no requests, the Sandbox is paused.
+@@ -585,9 +594,11 @@ func (linst *LambdaInstance) Task() {
+ 	for {
+ 		// wait for a request (blocking) before making the
+ 		// Sandbox ready, or kill if we receive that signal
++		var new_req *Invocation
+ 		var req *Invocation
+ 		select {
+ 		case req = <-f.instChan:
++			new_req = &Invocation{w: req.w, r: req.r, done: req.done}
+ 		case killed := <-linst.killChan:
+ 			if sb != nil {
+ 				sb.Destroy()
+@@ -597,17 +608,17 @@ func (linst *LambdaInstance) Task() {
+ 		}
+ 
+ 		// if we have a sandbox, try unpausing it to see if it is still alive
+-		if sb != nil {
++		//if sb != nil {
+ 			// Unpause will often fail, because evictors
+ 			// are likely to prefer to evict paused
+ 			// sandboxes rather than inactive sandboxes.
+ 			// Thus, if this fails, we'll try to handle it
+ 			// by just creating a new sandbox.
+-			if err := sb.Unpause(); err != nil {
+-				f.printf("discard sandbox %s due to Unpause error: %v", sb.ID(), err)
+-				sb = nil
++		//	if err := sb.Unpause(); err != nil {
++		//		f.printf("discard sandbox %s due to Unpause error: %v", sb.ID(), err)
++		//		sb = nil
+ 			}
+-		}
++		//}
+ 
+ 		// if we don't already have a Sandbox, create one, and
+ 		// HTTP proxy over the channel
+@@ -649,9 +660,9 @@ func (linst *LambdaInstance) Task() {
+ 		}
+ 
+ 		// below here, we're guaranteed (1) sb != nil, (2) proxy != nil, (3) sb is unpaused
+-
++		go linst.asyn_run(new_req, proxy, f, err, sb)
+ 		// serve until we incoming queue is empty
+-		for req != nil {
++		/*for req != nil {
+ 			// ask Sandbox to respond, via HTTP proxy
+ 			t := common.T0("ServeHTTP")
+ 			proxy.ServeHTTP(req.w, req.r)
+@@ -679,7 +690,7 @@ func (linst *LambdaInstance) Task() {
+ 		if err := sb.Pause(); err != nil {
+ 			f.printf("discard sandbox %s due to Pause error: %v", sb.ID(), err)
+ 			sb = nil
+-		}
++		}*/
+ 	}
+ }
+ 
+diff --git a/src/sandbox/docker.go b/src/sandbox/docker.go
+index 111b89bc..73c66493 100644
+--- a/src/sandbox/docker.go
++++ b/src/sandbox/docker.go
+@@ -22,7 +22,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"time"
+-
++	"github.com/open-lambda/open-lambda/ol/common"
+ 	docker "github.com/fsouza/go-dockerclient"
+ )
+ 
+@@ -35,6 +35,7 @@ type DockerContainer struct {
+ 	client    *docker.Client
+ 	installed map[string]bool
+ 	meta      *SandboxMeta
++	priority  string
+ }
+ 
+ type HandlerState int
+@@ -149,6 +150,28 @@ func (c *DockerContainer) start() error {
+ 	return nil
+ }
+ 
++func (c *DockerContainer) startWithPriority() error {
++	//if err := c.client.StartContainerWithPriority(c.container.ID, nil, c.priority); err != nil {
++	//	log.Printf("failed to start container with err %v\n", err)
++	//	return c.dockerError(err)
++	//}
++
++	if err := c.client.StartContainer(c.container.ID, nil); err != nil {
++		log.Printf("failed to start container with err %v\n", err)
++		return c.dockerError(err)
++	}
++
++	container, err := c.client.InspectContainer(c.container.ID)
++	if err != nil {
++		log.Printf("failed to inpect container with err %v\n", err)
++		return c.dockerError(err)
++	}
++	c.container = container
++	c.nspid = fmt.Sprintf("%d", container.State.Pid)
++
++	return nil
++}
++
+ // Pause pauses the container.
+ func (c *DockerContainer) Pause() error {
+ 	st, err := c.State()
+@@ -267,7 +290,7 @@ func (c *DockerContainer) runServer() error {
+ 
+ 	if exec, err := c.client.CreateExec(execOpts); err != nil {
+ 		return err
+-	} else if err := c.client.StartExec(exec.ID, docker.StartExecOptions{}); err != nil {
++	} else if err := c.client.StartExec(exec.ID, docker.StartExecOptions{Priority : common.Conf.Seal_priority}); err != nil {
+ 		return err
+ 	}
+ 
+diff --git a/src/sandbox/dockerPool.go b/src/sandbox/dockerPool.go
+index accc7a3b..89d75300 100644
+--- a/src/sandbox/dockerPool.go
++++ b/src/sandbox/dockerPool.go
+@@ -83,7 +83,14 @@ func (pool *DockerPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir
+ 	if err := syscall.Mkfifo(pipe, 0777); err != nil {
+ 		return nil, err
+ 	}
+-
++	hostConfig := docker.HostConfig{
++		Binds:   volumes,
++		CapAdd:  pool.caps,
++		PidMode: "host",
++		NetworkMode: "host",
++		Runtime: pool.docker_runtime,
++		Privileged: true,
++	}
+ 	container, err := pool.client.CreateContainer(
+ 		docker.CreateContainerOptions{
+ 			Config: &docker.Config{
+@@ -91,12 +98,7 @@ func (pool *DockerPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir
+ 				Image:  dockerutil.LAMBDA_IMAGE,
+ 				Labels: pool.labels,
+ 			},
+-			HostConfig: &docker.HostConfig{
+-				Binds:   volumes,
+-				CapAdd:  pool.caps,
+-				PidMode: pool.pidMode,
+-				Runtime: pool.docker_runtime,
+-			},
++			HostConfig: &hostConfig,
+ 		},
+ 	)
+ 	if err != nil {
+@@ -110,9 +112,10 @@ func (pool *DockerPool) Create(parent Sandbox, isLeaf bool, codeDir, scratchDir
+ 		client:    pool.client,
+ 		installed: make(map[string]bool),
+ 		meta:      meta,
++		priority:  "1",
+ 	}
+ 
+-	if err := c.start(); err != nil {
++	if err := c.startWithPriority(); err != nil {
+ 		c.Destroy()
+ 		return nil, err
+ 	}
+diff --git a/src/vendor/github.com/fsouza/go-dockerclient/exec.go b/src/vendor/github.com/fsouza/go-dockerclient/exec.go
+index 5e7ea87f..e2467bde 100644
+--- a/src/vendor/github.com/fsouza/go-dockerclient/exec.go
++++ b/src/vendor/github.com/fsouza/go-dockerclient/exec.go
+@@ -76,7 +76,7 @@ type StartExecOptions struct {
+ 
+ 	Detach bool `json:"Detach,omitempty" yaml:"Detach,omitempty" toml:"Detach,omitempty"`
+ 	Tty    bool `json:"Tty,omitempty" yaml:"Tty,omitempty" toml:"Tty,omitempty"`
+-
++	Priority    string `json:"Priority,omitempty" yaml:"Priority,omitempty" toml:"Priority,omitempty"`
+ 	// Use raw terminal? Usually true when the container contains a TTY.
+ 	RawTerminal bool `qs:"-"`
+ 
