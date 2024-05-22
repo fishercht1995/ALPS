@@ -145,6 +145,11 @@ Submit benchmark request by http client
 go build run.go
 cd http_client && ./test.sh 
 ```
+Or simple use the script
+```
+cd experiments && ./run_experiment.sh CFS
+cd experiments && ./run_experiment.sh ALPS
+```
 ### Ablation Study
 The frontend scheduler offer two parameter to control policy fine-tuning. By defauly, policy fine-tuning is enable
 ```
