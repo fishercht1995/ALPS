@@ -122,7 +122,7 @@ cd /root/test && ./ol worker --path=worker1
 ```
 Now invoke your lambda
 ```
-curl -X POST http://localhost:5002/run/fib \
+curl -X POST http://localhost:5001/run/fib \
      -H "Content-Type: application/json" \
      -d '{"n":"30", "id":"20", "job":"fib"}'
 ``` 
