@@ -40,7 +40,7 @@ In addition, We modify and provide exact softwares binaries to run FaaS service.
         - version 1.6.24
 - OpenLambda:
     - commmit hash: b9112b4
-    - modification: patches/OpenLambda/changes.patch
+    - modifications: patches/OpenLambda/changes.patch
    
 ### Step-by-Step Installation
 
