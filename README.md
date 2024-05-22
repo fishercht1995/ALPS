@@ -145,7 +145,7 @@ Submit benchmark request by http client
 go build run.go
 cd http_client && ./test.sh 
 ```
-Or simple use the script
+Or use the script
 ```
 cd experiments && ./run_experiment.sh CFS
 cd experiments && ./run_experiment.sh ALPS
