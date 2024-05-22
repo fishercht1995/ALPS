@@ -109,7 +109,7 @@ class SRTFScheduler(Scheduler):
         else:
             return False
         
-class SEALScheduler(Scheduler):
+class ALPScheduler(Scheduler):
     def __init__(self, timeSlice, period, SRTFSimulationPath = ""):
         self.q = squeue.SEALPriorityQueue()
         self.timeSlice = timeSlice
