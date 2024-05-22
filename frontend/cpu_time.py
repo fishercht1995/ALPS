@@ -10,9 +10,9 @@ bpf_text = """
 #include <linux/sched.h>
 
 TRACEPOINT_PROBE(sched, sched_process_exit) {
-    u32 pid = bpf_get_current_pid_tgid() >> 32;  // 获取当前 PID
+    u32 pid = bpf_get_current_pid_tgid() >> 32; 
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    u64 sruntime = task->se.sum_exec_runtime; // 获取累计的 CPU 运行时间
+    u64 sruntime = task->se.sum_exec_runtime; 
 
     char comm[TASK_COMM_LEN];
     bpf_get_current_comm(&comm, sizeof(comm));
