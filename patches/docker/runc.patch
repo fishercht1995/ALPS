@@ -1,0 +1,129 @@
+diff --git a/libcontainer/container_linux.go b/libcontainer/container_linux.go
+index 1b33d170..82c6d8e4 100644
+--- a/libcontainer/container_linux.go
++++ b/libcontainer/container_linux.go
+@@ -191,7 +191,6 @@ func (c *linuxContainer) Start(process *Process) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	writeStringToFile("This is runc startContainer","/mydata/container_start.txt")
+ 	return c.start(process, status == Stopped)
+ }
+ 
+@@ -236,7 +235,6 @@ func (c *linuxContainer) exec() error {
+ }
+ 
+ func (c *linuxContainer) start(process *Process, isInit bool) error {
+-	
+ 	parent, err := c.newParentProcess(process, isInit)
+ 	if err != nil {
+ 		return newSystemErrorWithCause(err, "creating new parent process")
+diff --git a/libcontainer/process_linux.go b/libcontainer/process_linux.go
+index dae3c152..4b54e4b2 100644
+--- a/libcontainer/process_linux.go
++++ b/libcontainer/process_linux.go
+@@ -229,7 +229,6 @@ func (p *initProcess) execSetns() error {
+ }
+ 
+ func (p *initProcess) start() error {
+-	writeStringToFile("This is process startContainer","/mydata/initprocess_start.txt")
+ 	defer p.parentPipe.Close()
+ 	err := p.cmd.Start()
+ 	p.process.ops = p
+diff --git a/libcontainer/standard_init_linux.go b/libcontainer/standard_init_linux.go
+index b7f11920..f867d334 100644
+--- a/libcontainer/standard_init_linux.go
++++ b/libcontainer/standard_init_linux.go
+@@ -44,23 +44,6 @@ func (l *linuxStandardInit) getSessionRingParams() (string, uint32, uint32) {
+ // the kernel
+ const PR_SET_NO_NEW_PRIVS = 0x26
+ 
+-func writeStringToFile(str string, path string) error {
+-    // Open file for writing
+-    file, err := os.Create(path)
+-    if err != nil {
+-        return err
+-    }
+-    defer file.Close()
+-
+-    // Write string to file
+-    _, err = file.WriteString(str)
+-    if err != nil {
+-        return err
+-    }
+-
+-    return nil
+-}
+-
+ func (l *linuxStandardInit) Init() error {
+ 	if !l.config.Config.NoNewKeyring {
+ 		ringname, keepperms, newperms := l.getSessionRingParams()
+@@ -188,7 +171,6 @@ func (l *linuxStandardInit) Init() error {
+ 			return newSystemErrorWithCause(err, "init seccomp")
+ 		}
+ 	}
+-	writeStringToFile("This is init first process","/mydata/runc_init.txt")
+ 	// close the statedir fd before exec because the kernel resets dumpable in the wrong order
+ 	// https://github.com/torvalds/linux/blob/v4.9/fs/exec.c#L1290-L1318
+ 	syscall.Close(l.stateDirFD)
+diff --git a/main.go b/main.go
+index 718d6b5f..1cb8f4db 100644
+--- a/main.go
++++ b/main.go
+@@ -23,8 +23,6 @@ const (
+ 	specConfig = "config.json"
+ 	usage      = `Open Container Initiative runtime
+ 
+-This is a customized runc tool to pass priority of containers
+-
+ runc is a command line client for running applications packaged according to
+ the Open Container Initiative (OCI) format and is a compliant implementation of the
+ Open Container Initiative specification.
+@@ -91,11 +89,6 @@ func main() {
+ 			Name:  "systemd-cgroup",
+ 			Usage: "enable systemd cgroup support, expects cgroupsPath to be of form \"slice:prefix:name\" for e.g. \"system.slice:runc:434234\"",
+ 		},
+-		cli.IntFlag{
+-			Name:  "priority",
+-			Usage: "Set SEALS function priority",
+-		},
+-
+ 	}
+ 	app.Commands = []cli.Command{
+ 		checkpointCommand,
+diff --git a/utils_linux.go b/utils_linux.go
+index 42865fd8..94c520fb 100644
+--- a/utils_linux.go
++++ b/utils_linux.go
+@@ -23,23 +23,6 @@ var errEmptyID = errors.New("container id cannot be empty")
+ 
+ var container libcontainer.Container
+ 
+-
+-func writeStringToFile(str string, path string) error {
+-    // Open file for writing
+-    file, err := os.Create(path)
+-    if err != nil {
+-        return err
+-    }
+-    defer file.Close()
+-
+-    // Write string to file
+-    _, err = file.WriteString(str)
+-    if err != nil {
+-        return err
+-    }
+-
+-    return nil
+-}
+ // loadFactory returns the configured factory instance for execing containers.
+ func loadFactory(context *cli.Context) (libcontainer.Factory, error) {
+ 	root := context.GlobalString("root")
+@@ -297,7 +280,6 @@ func validateProcessSpec(spec *specs.Process) error {
+ }
+ 
+ func startContainer(context *cli.Context, spec *specs.Spec, create bool) (int, error) {
+-	writeStringToFile("This is runc startContainer","/mydata/runc_startcontainer.txt")
+ 	id := context.Args().First()
+ 	if id == "" {
+ 		return -1, errEmptyID

@@ -1,0 +1,147 @@
+diff --git a/api/grpc/server/server.go b/api/grpc/server/server.go
+index 0a5b1c1..f57a357 100644
+--- a/api/grpc/server/server.go
++++ b/api/grpc/server/server.go
+@@ -5,10 +5,11 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"os"
++	"strconv"
+ 	"strings"
+ 	"syscall"
+ 	"time"
+-	"strconv"
++
+ 	"google.golang.org/grpc"
+ 	"google.golang.org/grpc/codes"
+ 
+@@ -24,22 +25,6 @@ type apiServer struct {
+ 	sv *supervisor.Supervisor
+ }
+ 
+-func writeStringToFile(str string, path string) error {
+-    // Open file for writing
+-    file, err := os.Create(path)
+-    if err != nil {
+-        return err
+-    }
+-    defer file.Close()
+-
+-    // Write string to file
+-    _, err = file.WriteString(str)
+-    if err != nil {
+-        return err
+-    }
+-
+-    return nil
+-}
+ // NewServer returns grpc server instance
+ func NewServer(sv *supervisor.Supervisor) types.APIServer {
+ 	return &apiServer{
+@@ -69,11 +54,6 @@ func (s *apiServer) CreateContainer(ctx context.Context, c *types.CreateContaine
+ 	e.Labels = c.Labels
+ 	e.NoPivotRoot = c.NoPivotRoot
+ 	e.Runtime = c.Runtime
+-	//if len(c.RuntimeArgs) >= 1{
+-	//	e.RuntimeArgs = c.RuntimeArgs[:len(c.RuntimeArgs)-1]
+-	//}else{
+-	//	e.RuntimeArgs = c.RuntimeArgs
+-	//}
+ 	e.RuntimeArgs = c.RuntimeArgs
+ 	e.StartResponse = make(chan supervisor.StartResponse, 1)
+ 	e.Ctx = ctx
+diff --git a/container-shim b/container-shim
+deleted file mode 100755
+index 5869733..0000000
+Binary files a/container-shim and /dev/null differ
+diff --git a/containerd-shim/main.go b/containerd-shim/main.go
+index 4203ba5..b30c04b 100644
+--- a/containerd-shim/main.go
++++ b/containerd-shim/main.go
+@@ -8,7 +8,7 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"syscall"
+-	
++
+ 	"github.com/docker/containerd/osutils"
+ 	"github.com/docker/docker/pkg/term"
+ )
+@@ -22,22 +22,6 @@ type controlMessage struct {
+ 	Width  int
+ 	Height int
+ }
+-func writeStringToFile(str string, path string) error {
+-    // Open file for writing
+-    file, err := os.Create(path)
+-    if err != nil {
+-        return err
+-    }
+-    defer file.Close()
+-
+-    // Write string to file
+-    _, err = file.WriteString(str)
+-    if err != nil {
+-        return err
+-    }
+-
+-    return nil
+-}
+ 
+ // containerd-shim is a small shim that sits in front of a runtime implementation
+ // that allows it to be repartented to init and handle reattach from the caller.
+diff --git a/docker-container b/docker-container
+deleted file mode 100755
+index 11e2b02..0000000
+Binary files a/docker-container and /dev/null differ
+diff --git a/docker-container-shim b/docker-container-shim
+deleted file mode 100755
+index 05a91fd..0000000
+Binary files a/docker-container-shim and /dev/null differ
+diff --git a/runtime/container.go b/runtime/container.go
+index f9c32f5..2e9e663 100644
+--- a/runtime/container.go
++++ b/runtime/container.go
+@@ -222,7 +222,6 @@ type container struct {
+ 	oomFds      []int
+ 	noPivotRoot bool
+ 	timeout     time.Duration
+-
+ }
+ 
+ func (c *container) ID() string {
+@@ -400,22 +399,7 @@ func (c *container) DeleteCheckpoint(name string, checkpointDir string) error {
+ 	}
+ 	return os.RemoveAll(filepath.Join(checkpointDir, name))
+ }
+-func writeStringToFile(str string, path string) error {
+-    // Open file for writing
+-    file, err := os.Create(path)
+-    if err != nil {
+-        return err
+-    }
+-    defer file.Close()
+-
+-    // Write string to file
+-    _, err = file.WriteString(str)
+-    if err != nil {
+-        return err
+-    }
+ 
+-    return nil
+-}
+ func (c *container) Start(ctx context.Context, checkpointPath string, s Stdio) (Process, error) {
+ 	processRoot := filepath.Join(c.root, c.id, InitProcessID)
+ 	if err := os.Mkdir(processRoot, 0755); err != nil {
+diff --git a/supervisor/create.go b/supervisor/create.go
+index c73b18b..c78f100 100644
+--- a/supervisor/create.go
++++ b/supervisor/create.go
+@@ -44,7 +44,6 @@ func (s *Supervisor) start(t *StartTask) error {
+ 		Labels:      t.Labels,
+ 		NoPivotRoot: t.NoPivotRoot,
+ 		Timeout:     s.timeout,
+-
+ 	})
+ 	if err != nil {
+ 		return err
